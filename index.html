@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GOD SPORTS APP</title>
+
+<style>
+body{margin:0;background:#0b0f1a;color:#fff;font-family:sans-serif}
+header{background:#111;padding:15px;display:flex;justify-content:space-between}
+.container{padding:10px}
+.card{background:#111;margin:10px 0;padding:15px;border-radius:12px}
+button,input{padding:10px;margin:5px;border:none;border-radius:8px}
+button{background:#00ffcc;font-weight:bold}
+.live{color:red}
+.ad{background:#222;padding:10px;margin:10px;border-radius:10px;text-align:center}
+</style>
+</head>
+
+<body>
+
+<header>
+<div>🔥 GOD SPORTS</div>
+<div id="status">Offline</div>
+</header>
+
+<div class="container">
+
+<input id="user" placeholder="username">
+<input id="pass" type="password" placeholder="password">
+
+<button onclick="register()">Register</button>
+<button onclick="login()">Login</button>
+<button onclick="guest()">Guest</button>
+<button onclick="logout()">Logout</button>
+<button onclick="profile()">Profile</button>
+
+<input id="search" placeholder="بحث">
+
+<div class="ad">💰 Ad Space</div>
+
+<div id="matches"></div>
+
+<h3>💬 Chat</h3>
+<input id="msg">
+<button onclick="sendMsg()">Send</button>
+<div id="chat"></div>
+
+<h3>🧠 AI</h3>
+<button onclick="predict()">Predict</button>
+<div id="ai"></div>
+
+</div>
+
+<script>
+const API="https://your-backend.onrender.com/api";
+let data=[];
+
+/* AUTH */
+async function register(){
+await fetch(API+"/register",{method:"POST",headers:{"Content-Type":"application/json"},
+body:JSON.stringify({username:user.value,password:pass.value})});
+alert("تم");
+}
+
+async function login(){
+let r=await fetch(API+"/login",{method:"POST",headers:{"Content-Type":"application/json"},
+body:JSON.stringify({username:user.value,password:pass.value})});
+let d=await r.json();
+if(d.success){
+localStorage.setItem("token",d.token);
+status.innerText="Online";
+alert("تم الدخول");
+}
+}
+
+function guest(){
+localStorage.setItem("guest","1");
+status.innerText="Guest";
+}
+
+function logout(){
+localStorage.clear();
+location.reload();
+}
+
+/* MATCHES */
+async function load(){
+let r=await fetch(API+"/matches");
+let d=await r.json();
+data=d.matches||[];
+render(data);
+}
+
+function render(d){
+matches.innerHTML=d.slice(0,20).map(m=>`
+<div class="card">
+${m.homeTeam.name} vs ${m.awayTeam.name}<br>
+<span class="${m.status=='IN_PLAY'?'live':''}">
+${m.status}
+</span><br>
+${m.score.fullTime.home??0} - ${m.score.fullTime.away??0}
+<button onclick="fav('${m.homeTeam.name}')">⭐</button>
+</div>
+`).join("");
+}
+
+/* FAVORITE */
+async function fav(team){
+let t=localStorage.getItem("token");
+if(!t) return alert("login");
+await fetch(API+"/fav",{method:"POST",headers:{
+"Content-Type":"application/json","Authorization":t},
+body:JSON.stringify({team})});
+}
+
+/* PROFILE */
+async function profile(){
+let t=localStorage.getItem("token");
+let r=await fetch(API+"/fav",{headers:{Authorization:t}});
+let d=await r.json();
+matches.innerHTML=d.map(x=>`<div class="card">⭐ ${x}</div>`).join("");
+}
+
+/* CHAT */
+async function sendMsg(){
+let t=localStorage.getItem("token");
+await fetch(API+"/chat",{method:"POST",headers:{
+"Content-Type":"application/json","Authorization":t},
+body:JSON.stringify({text:msg.value})});
+loadChat();
+}
+
+async function loadChat(){
+let r=await fetch(API+"/chat");
+let d=await r.json();
+chat.innerHTML=d.map(m=>`<div>${m.user}: ${m.text}</div>`).join("");
+}
+
+/* AI */
+async function predict(){
+let r=await fetch(API+"/predict",{method:"POST"});
+let d=await r.json();
+ai.innerText=d.prediction;
+}
+
+/* SEARCH */
+search.oninput=(e)=>{
+let v=e.target.value.toLowerCase();
+render(data.filter(m=>
+m.homeTeam.name.toLowerCase().includes(v)||
+m.awayTeam.name.toLowerCase().includes(v)
+));
+};
+
+/* INIT */
+window.onload=()=>{
+load();
+loadChat();
+};
+
+setInterval(load,30000);
+setInterval(loadChat,5000);
+</script>
+
+</body>
+</html>
